@@ -1,0 +1,39 @@
+# Environment & Secrets
+.env
+*.env.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Workspace (generated during pipeline runs)
+workspace/
+reports/
+eval_results/
+
+# ML Model artifacts
+data/fusion_model.joblib
+data/fusion_model.meta.json
+
+# RLHF training data (may contain sensitive code)
+training_dataset.jsonl
+
+# Ruff cache
+.ruff_cache/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Reference repos (cloned for study only)
+ai_security_ref/

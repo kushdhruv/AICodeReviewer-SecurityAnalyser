@@ -1,0 +1,5 @@
+
+class Config:
+    AWS_ACCESS_KEY_ID = "AKIAIOSFODNN72EXAMPLE"
+    AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    DB_PASSWORD = "super_secret_password_123!"

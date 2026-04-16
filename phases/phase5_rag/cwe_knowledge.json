@@ -1,0 +1,575 @@
+[
+  {
+    "cwe_id": "CWE-89",
+    "name": "SQL Injection",
+    "definition": "The software constructs an SQL command using externally-influenced input, but does not neutralize special elements that could modify the intended SQL command.",
+    "root_cause": "User-controlled input is concatenated directly into an SQL query without being sanitized or parameterized. This allows the attacker to alter the query logic entirely.",
+    "impact": [
+      "Data Leakage (Reading unauthorized records)",
+      "Authentication Bypass",
+      "Database Manipulation (Insert, Update, Delete)"
+    ],
+    "mitigation": [
+      "Use strict Parameterized Queries (Prepared Statements) for all database access.",
+      "Use an Object-Relational Mapper (ORM) that automatically escapes inputs.",
+      "Enforce strict input validation (allow-listing) for any user data."
+    ],
+    "example_vulnerable_code": "def get_user(db, username):\n    query = \"SELECT * FROM users WHERE username = '\" + username + \"'\"\n    return db.execute(query)",
+    "example_fixed_code": "def get_user(db, username):\n    query = \"SELECT * FROM users WHERE username = ?\"\n    return db.execute(query, (username,))",
+    "cve_examples": [
+      "CVE-2023-23488: SQLi in WordPress Paid Memberships Pro plugin allowing unauthenticated data dumped (CVSS 9.8 Critical).",
+      "CVE-2021-3156: SQLi resulting in root privilege escalation (CVSS 8.8 High)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-79",
+    "name": "Cross-site Scripting (XSS)",
+    "definition": "The software does not neutralize or incorrectly neutralizes user-controllable input before it is placed in output that is used as a web page that is served to other users.",
+    "root_cause": "Untrusted input is reflected back to the user's browser without proper HTML entity encoding or sanitization, causing the browser to execute it as valid JavaScript.",
+    "impact": [
+      "Session Hijacking (Stealing cookies)",
+      "Unauthorized Actions on behalf of the user",
+      "Phishing and Defacement"
+    ],
+    "mitigation": [
+      "Always HTML-encode untrusted data before reflecting it in an HTML document context.",
+      "Use safer, modern web frameworks (like React or Angular) that auto-escape variables by default.",
+      "Implement a strict Content Security Policy (CSP) header."
+    ],
+    "example_vulnerable_code": "from flask import request, render_template_string\n\n@app.route('/hello')\ndef hello():\n    name = request.args.get('name', 'World')\n    return render_template_string('<h1>Hello {}!</h1>'.format(name))",
+    "example_fixed_code": "from flask import request, render_template_string\nimport html\n\n@app.route('/hello')\ndef hello():\n    name = request.args.get('name', 'World')\n    safe_name = html.escape(name)\n    return render_template_string('<h1>Hello {}!</h1>'.format(safe_name))",
+    "cve_examples": [
+      "CVE-2021-22204: Stored XSS in GitLab resulting in RCE via session hijack (CVSS 9.9 Critical)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-798",
+    "name": "Use of Hard-coded Credentials",
+    "definition": "The software contains hard-coded credentials, such as a password or cryptographic key.",
+    "root_cause": "Developers commit plaintext passwords, API keys, or private tokens directly into the source code repositories for convenience during development.",
+    "impact": [
+      "System Compromise",
+      "Massive Data Breaches"
+    ],
+    "mitigation": [
+      "Never store secrets in source code. Inject them strictly via Environment Variables.",
+      "Use dedicated Secrets Management services (e.g., AWS Secrets Manager, HashiCorp Vault)."
+    ],
+    "example_vulnerable_code": "import boto3\n\ndef get_s3_client():\n    return boto3.client('s3',\n        aws_access_key_id='AKIAIOSFODNN7EXAMPLE',\n        aws_secret_access_key='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'\n    )",
+    "example_fixed_code": "import boto3\nimport os\n\ndef get_s3_client():\n    return boto3.client('s3',\n        aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),\n        aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY')\n    )",
+    "cve_examples": [
+      "CVE-2022-26134: Hardcoded credentials in Confluence allowing RCE (CVSS 9.8 Critical)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-22",
+    "name": "Path Traversal",
+    "definition": "The software uses external input to construct a pathname intended to identify a file underneath a restricted parent directory, but doesn't properly neutralize special elements.",
+    "root_cause": "The application constructs file paths strictly by appending user input without validating or normalizing the resulting absolute path against a safe base directory.",
+    "impact": [
+      "Read sensitive configuration files or source code.",
+      "Overwrite critical system files."
+    ],
+    "mitigation": [
+      "Normalize paths using OS library functions and strictly verify the resulting path starts with the intended base directory.",
+      "Use secure_filename() or equivalent sanitization functions."
+    ],
+    "example_vulnerable_code": "import os\nfrom flask import send_file, request\n\n@app.route('/download')\ndef download_file():\n    filename = request.args.get('file')\n    filepath = os.path.join('/var/www/uploads', filename)\n    return send_file(filepath)",
+    "example_fixed_code": "import os\nfrom flask import send_file, request, abort\nfrom werkzeug.utils import secure_filename\n\n@app.route('/download')\ndef download_file():\n    filename = request.args.get('file')\n    safe_name = secure_filename(filename)\n    filepath = os.path.join('/var/www/uploads', safe_name)\n    if not os.path.abspath(filepath).startswith('/var/www/uploads'):\n        abort(403)\n    return send_file(filepath)",
+    "cve_examples": [
+      "CVE-2021-41773: Path traversal in Apache HTTP Server 2.4.49 (CVSS 7.5 High)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-78",
+    "name": "OS Command Injection",
+    "definition": "The software constructs all or part of an OS command using externally-influenced input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements.",
+    "root_cause": "The application passes unsafe user-supplied data directly to system shells without sanitization.",
+    "impact": [
+      "Full system takeover (Remote Code Execution)."
+    ],
+    "mitigation": [
+      "Never invoke an OS shell directly. Use language-specific libraries or APIs.",
+      "If OS commands must be used, do NOT use `shell=True`. Pass arguments as a list of strings."
+    ],
+    "example_vulnerable_code": "import subprocess\n\ndef ping_host(host):\n    cmd = f\"ping -c 4 {host}\"\n    return subprocess.check_output(cmd, shell=True)",
+    "example_fixed_code": "import subprocess\n\ndef ping_host(host):\n    cmd = [\"ping\", \"-c\", \"4\", host]\n    return subprocess.check_output(cmd, shell=False)",
+    "cve_examples": [
+      "CVE-2021-44228: Log4Shell vulnerability allowing remote code execution via LDAP string injection (CVSS 10.0 Critical)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-20",
+    "name": "Improper Input Validation",
+    "definition": "The software receives input or data, but it does not validate or incorrectly validates that the input has the properties that are required to process the data safely.",
+    "root_cause": "Assuming user inputs are benign and failing to strictly type-check, length-check, or validate the specific contents of an incoming payload.",
+    "impact": [
+      "Application crashes (Denial of Service).",
+      "Unexpected behavior leading to downstream vulnerabilities."
+    ],
+    "mitigation": [
+      "Assume all input is malicious. Use strict allow-listing (reject anything not explicitly allowed).",
+      "Use Pydantic or similar schema validation libraries."
+    ],
+    "example_vulnerable_code": "def process_age(user_data):\n    age = int(user_data['age'])\n    return age * 365",
+    "example_fixed_code": "def process_age(user_data):\n    try:\n        age = int(user_data.get('age'))\n        if not (0 <= age <= 150):\n           raise ValueError(\"Age out of bounds\")\n        return age * 365\n    except (TypeError, ValueError):\n        return None",
+    "cve_examples": [
+      "CVE-2021-22986: F5 BIG-IP iControl REST arbitrary command execution due to poor validation (CVSS 9.8 Critical)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-434",
+    "name": "Unrestricted Upload of File with Dangerous Type",
+    "definition": "The software allows the attacker to upload or transfer files of dangerous types that can be automatically processed within the product's environment.",
+    "root_cause": "The server trusts the extension or MIME type provided by the user and saves an executable payload into a public web directory.",
+    "impact": [
+      "Remote Code Execution (RCE) on the server."
+    ],
+    "mitigation": [
+      "Never rely on client-side validation for file types. Verify magic bytes.",
+      "Store uploaded files outside the web root.",
+      "Generate random filenames to prevent name collision attacks."
+    ],
+    "example_vulnerable_code": "import os\nfrom flask import request\n\n@app.route('/upload', methods=['POST'])\ndef upload_avatar():\n    file = request.files['image']\n    file.save(os.path.join('/var/www/html/uploads', file.filename))\n    return 'Success'",
+    "example_fixed_code": "import os\nfrom flask import request, abort\nimport uuid\n\nALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}\n\n@app.route('/upload', methods=['POST'])\ndef upload_avatar():\n    file = request.files['image']\n    ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''\n    if ext not in ALLOWED_EXTENSIONS:\n        abort(400)\n    safe_filename = f\"{uuid.uuid4().hex}.{ext}\"\n    file.save(os.path.join('/private/storage/uploads', safe_filename))\n    return 'Success'",
+    "cve_examples": [
+      "CVE-2022-26138: Jira unauthenticated RCE via arbitrary file upload (CVSS 9.8 Critical)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-502",
+    "name": "Deserialization of Untrusted Data",
+    "definition": "The application deserializes untrusted data without sufficiently verifying that the resulting data will be valid.",
+    "root_cause": "Using unsafe native deserialization logic (like Python's pickle) which allows the execution of arbitrary code when reconstructing objects.",
+    "impact": [
+      "Remote Code Execution.",
+      "Denial of Service."
+    ],
+    "mitigation": [
+      "Never use native binary serialization forms for untrusted data. Use pure data formats like JSON.",
+      "If deserialization is required, use signed tokens (HMAC) to verify data integrity."
+    ],
+    "example_vulnerable_code": "import pickle\nfrom flask import request\n\n@app.route('/load_state')\ndef load_state():\n    data = request.data\n    state = pickle.loads(data)\n    return f\"State loaded for user {state.get('user')}\"",
+    "example_fixed_code": "import json\nfrom flask import request\n\n@app.route('/load_state')\ndef load_state():\n    data = request.data\n    try:\n        state = json.loads(data)\n        return f\"State loaded for user {state.get('user')}\"\n    except json.JSONDecodeError:\n        return \"Invalid Data\", 400",
+    "cve_examples": [
+      "CVE-2017-9805: Apache Struts REST plugin XStream unmarshalled RCE (CVSS 9.8 Critical)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-918",
+    "name": "Server-Side Request Forgery (SSRF)",
+    "definition": "The web server receives a URL or similar request from an upstream component and retrieves the contents of this URL, but it does not sufficiently ensure that the request is being sent to the expected destination.",
+    "root_cause": "The backend application blindly fetches a URL provided by the user without validating the target domain or IP address.",
+    "impact": [
+      "Cloud metadata theft (AWS IAM keys via 169.254.169.254).",
+      "Scanning internal networks behind the firewall.",
+      "Accessing internal services not exposed to the internet."
+    ],
+    "mitigation": [
+      "Strictly validate the input domain against an allow-list.",
+      "Disable the fetching of internal IP addresses (e.g., 127.0.0.1, 10.x.x.x, 169.254.x.x).",
+      "Use a dedicated egress proxy for outbound requests."
+    ],
+    "example_vulnerable_code": "import requests\nfrom flask import request\n\n@app.route('/fetch_preview')\ndef fetch_preview():\n    url = request.args.get('url')\n    resp = requests.get(url)\n    return resp.text",
+    "example_fixed_code": "import requests\nfrom urllib.parse import urlparse\nfrom flask import request, abort\nimport ipaddress\n\n@app.route('/fetch_preview')\ndef fetch_preview():\n    url = request.args.get('url')\n    parsed = urlparse(url)\n    try:\n        ip = ipaddress.ip_address(parsed.hostname)\n        if ip.is_private or ip.is_loopback:\n            abort(403)\n    except ValueError:\n        pass\n    resp = requests.get(url, timeout=3)\n    return resp.text",
+    "cve_examples": [
+      "CVE-2021-26855: ProxyLogon SSRF in Microsoft Exchange Server allowed attackers to bypass authentication and execute code (CVSS 9.8 Critical)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-611",
+    "name": "Improper Restriction of XML External Entity Reference (XXE)",
+    "definition": "The software processes an XML document that can contain XML entities with URIs that resolve to documents outside of the intended sphere of control.",
+    "root_cause": "The XML parser is configured by default to process external entities and DTDs embedded by attackers.",
+    "impact": [
+      "Local file read (e.g., retrieving /etc/passwd).",
+      "Server-Side Request Forgery.",
+      "Denial of Service via Billion Laughs attack."
+    ],
+    "mitigation": [
+      "Completely disable external entity fetching and DTD processing in the XML parser.",
+      "Use modern, secure libraries (e.g., defusedxml in Python)."
+    ],
+    "example_vulnerable_code": "from lxml import etree\nfrom flask import request\n\n@app.route('/upload_xml', methods=['POST'])\ndef process_xml():\n    xml_data = request.data\n    root = etree.fromstring(xml_data)\n    return root.tag",
+    "example_fixed_code": "from defusedxml.lxml import fromstring\nfrom flask import request\n\n@app.route('/upload_xml', methods=['POST'])\ndef process_xml():\n    xml_data = request.data\n    root = fromstring(xml_data)\n    return root.tag",
+    "cve_examples": [
+      "CVE-2018-1000861: XXE in Jenkins Stapler framework allowed unauthenticated remote code execution (CVSS 9.8 Critical)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-287",
+    "name": "Improper Authentication",
+    "definition": "When an actor claims to have a given identity, the software does not prove or insufficiently proves that the claim is correct.",
+    "root_cause": "Missing or weak authentication checks on sensitive endpoints. Relying on client-side tokens without server-side validation.",
+    "impact": [
+      "Complete account takeover.",
+      "Unauthorized access to administrative functions.",
+      "Data exfiltration."
+    ],
+    "mitigation": [
+      "Enforce authentication on all sensitive endpoints using server-side session management.",
+      "Use proven authentication frameworks (e.g., Flask-Login, Django auth).",
+      "Implement multi-factor authentication (MFA) for critical operations."
+    ],
+    "example_vulnerable_code": "@app.route('/admin/delete_user', methods=['POST'])\ndef delete_user():\n    user_id = request.form['user_id']\n    db.execute('DELETE FROM users WHERE id = ?', (user_id,))\n    return 'User deleted'",
+    "example_fixed_code": "from flask_login import login_required, current_user\n\n@app.route('/admin/delete_user', methods=['POST'])\n@login_required\ndef delete_user():\n    if not current_user.is_admin:\n        abort(403)\n    user_id = request.form['user_id']\n    db.execute('DELETE FROM users WHERE id = ?', (user_id,))\n    return 'User deleted'",
+    "cve_examples": [
+      "CVE-2023-22515: Broken Access Control in Atlassian Confluence allowing privilege escalation (CVSS 10.0 Critical)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-306",
+    "name": "Missing Authentication for Critical Function",
+    "definition": "The software does not perform any authentication for functionality that requires a provable user identity or consumes a significant amount of resources.",
+    "root_cause": "Administrative or destructive API endpoints are left completely unprotected, accessible to anonymous users.",
+    "impact": [
+      "Unauthorized administrative actions.",
+      "Data destruction or manipulation.",
+      "System compromise."
+    ],
+    "mitigation": [
+      "Require authentication for all endpoints that modify data or access sensitive resources.",
+      "Use role-based access control (RBAC).",
+      "Add API key or OAuth2 token requirements for all API endpoints."
+    ],
+    "example_vulnerable_code": "@app.route('/api/config', methods=['PUT'])\ndef update_config():\n    new_config = request.json\n    save_config(new_config)\n    return 'Config updated'",
+    "example_fixed_code": "from functools import wraps\n\ndef require_api_key(f):\n    @wraps(f)\n    def decorated(*args, **kwargs):\n        api_key = request.headers.get('X-API-Key')\n        if api_key != os.environ.get('ADMIN_API_KEY'):\n            abort(401)\n        return f(*args, **kwargs)\n    return decorated\n\n@app.route('/api/config', methods=['PUT'])\n@require_api_key\ndef update_config():\n    new_config = request.json\n    save_config(new_config)\n    return 'Config updated'",
+    "cve_examples": [
+      "CVE-2020-10148: SolarWinds Orion API authentication bypass (CVSS 9.8 Critical)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-94",
+    "name": "Improper Control of Generation of Code (Code Injection)",
+    "definition": "The software constructs all or part of a code segment using externally-influenced input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could modify the syntax or behavior of the intended code segment.",
+    "root_cause": "Using eval(), exec(), or compile() with user-controlled input, allowing arbitrary code execution.",
+    "impact": [
+      "Remote Code Execution.",
+      "Complete server compromise.",
+      "Data theft."
+    ],
+    "mitigation": [
+      "Never use eval() or exec() with user input.",
+      "Use safe alternatives like ast.literal_eval() for parsing simple data structures.",
+      "Implement sandboxing if dynamic code execution is required."
+    ],
+    "example_vulnerable_code": "from flask import request\n\n@app.route('/calculate')\ndef calculate():\n    expression = request.args.get('expr')\n    result = eval(expression)\n    return str(result)",
+    "example_fixed_code": "import ast\nfrom flask import request, abort\n\n@app.route('/calculate')\ndef calculate():\n    expression = request.args.get('expr')\n    try:\n        result = ast.literal_eval(expression)\n        return str(result)\n    except (ValueError, SyntaxError):\n        abort(400, 'Invalid expression')",
+    "cve_examples": [
+      "CVE-2019-0604: SharePoint remote code execution via unsafe deserialization and code injection (CVSS 9.8 Critical)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-77",
+    "name": "Command Injection",
+    "definition": "The software constructs all or part of a command using externally-influenced input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could modify the intended command.",
+    "root_cause": "Concatenating user input into command strings without proper escaping or using shell=True in subprocess calls.",
+    "impact": [
+      "Remote Code Execution.",
+      "Full system compromise.",
+      "Data exfiltration."
+    ],
+    "mitigation": [
+      "Use parameterized command execution (list-based subprocess calls).",
+      "Never use shell=True with user-controlled data.",
+      "Use shlex.quote() for any unavoidable shell string construction."
+    ],
+    "example_vulnerable_code": "import os\n\ndef convert_file(filename):\n    os.system(f'convert {filename} output.pdf')",
+    "example_fixed_code": "import subprocess\nimport shlex\n\ndef convert_file(filename):\n    safe_name = shlex.quote(filename)\n    subprocess.run(['convert', safe_name, 'output.pdf'], shell=False)",
+    "cve_examples": [
+      "CVE-2022-22947: Spring Cloud Gateway code injection via SpEL (CVSS 10.0 Critical)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-352",
+    "name": "Cross-Site Request Forgery (CSRF)",
+    "definition": "The web application does not, or can not, sufficiently verify whether a well-formed, valid, consistent request was intentionally provided by the user who submitted the request.",
+    "root_cause": "State-changing endpoints accept requests without verifying the origin via anti-CSRF tokens.",
+    "impact": [
+      "Unauthorized state changes (password change, fund transfer).",
+      "Account takeover via social engineering."
+    ],
+    "mitigation": [
+      "Implement anti-CSRF tokens on all state-changing forms.",
+      "Use SameSite cookie attributes.",
+      "Verify Origin/Referer headers."
+    ],
+    "example_vulnerable_code": "@app.route('/transfer', methods=['POST'])\ndef transfer_funds():\n    to_account = request.form['to']\n    amount = request.form['amount']\n    execute_transfer(current_user, to_account, amount)\n    return 'Transfer complete'",
+    "example_fixed_code": "from flask_wtf.csrf import CSRFProtect\n\ncsrf = CSRFProtect(app)\n\n@app.route('/transfer', methods=['POST'])\ndef transfer_funds():\n    # Flask-WTF automatically validates the CSRF token\n    to_account = request.form['to']\n    amount = request.form['amount']\n    execute_transfer(current_user, to_account, amount)\n    return 'Transfer complete'",
+    "cve_examples": [
+      "CVE-2020-26217: XStream CSRF leading to remote code execution (CVSS 8.8 High)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-862",
+    "name": "Missing Authorization",
+    "definition": "The software does not perform an authorization check when an actor attempts to access a resource or perform an action.",
+    "root_cause": "Authenticated users can access resources belonging to other users because the application only checks authentication but not authorization (IDOR).",
+    "impact": [
+      "Horizontal privilege escalation.",
+      "Unauthorized data access.",
+      "Data manipulation."
+    ],
+    "mitigation": [
+      "Implement object-level authorization checks.",
+      "Verify that the requesting user owns/has permission for the requested resource.",
+      "Use frameworks that enforce authorization policies."
+    ],
+    "example_vulnerable_code": "@app.route('/api/user/<user_id>/profile')\n@login_required\ndef get_profile(user_id):\n    user = db.query(User).get(user_id)\n    return jsonify(user.to_dict())",
+    "example_fixed_code": "@app.route('/api/user/<user_id>/profile')\n@login_required\ndef get_profile(user_id):\n    if str(current_user.id) != str(user_id) and not current_user.is_admin:\n        abort(403)\n    user = db.query(User).get(user_id)\n    return jsonify(user.to_dict())",
+    "cve_examples": [
+      "CVE-2023-2868: Barracuda ESG IDOR leading to unauthorized mailbox access (CVSS 9.8 Critical)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-200",
+    "name": "Exposure of Sensitive Information to an Unauthorized Actor",
+    "definition": "The software exposes sensitive information to an actor that is not explicitly authorized to have access to that information.",
+    "root_cause": "Verbose error messages, debug pages, or API responses that leak stack traces, database schemas, internal IPs, or credentials.",
+    "impact": [
+      "Information disclosure aiding further attacks.",
+      "Credential exposure.",
+      "Internal architecture leak."
+    ],
+    "mitigation": [
+      "Never return stack traces or debug information in production.",
+      "Use generic error messages for end users.",
+      "Disable debug mode in production deployments."
+    ],
+    "example_vulnerable_code": "@app.errorhandler(500)\ndef server_error(e):\n    return f'Internal Error: {str(e)}\\n{traceback.format_exc()}', 500",
+    "example_fixed_code": "@app.errorhandler(500)\ndef server_error(e):\n    logger.error(f'Internal Error: {str(e)}', exc_info=True)\n    return 'An internal error occurred. Please try again later.', 500",
+    "cve_examples": [
+      "CVE-2021-21234: Spring Boot Actuator information disclosure (CVSS 5.3 Medium)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-327",
+    "name": "Use of a Broken or Risky Cryptographic Algorithm",
+    "definition": "The use of a non-standard or broken algorithm is dangerous because a determined attacker may be able to break the algorithm and compromise whatever data has been protected.",
+    "root_cause": "Using deprecated algorithms like MD5, SHA1, DES, or RC4 for security-sensitive operations such as password hashing or data encryption.",
+    "impact": [
+      "Password cracking.",
+      "Data decryption.",
+      "Signature forgery."
+    ],
+    "mitigation": [
+      "Use modern algorithms: bcrypt/argon2 for passwords, AES-256-GCM for encryption, SHA-256+ for hashing.",
+      "Never use MD5 or SHA1 for security purposes.",
+      "Use established cryptography libraries rather than custom implementations."
+    ],
+    "example_vulnerable_code": "import hashlib\n\ndef hash_password(password):\n    return hashlib.md5(password.encode()).hexdigest()",
+    "example_fixed_code": "import bcrypt\n\ndef hash_password(password):\n    return bcrypt.hashpw(password.encode(), bcrypt.gensalt())",
+    "cve_examples": [
+      "CVE-2019-14855: GnuPG SHA1 signature bypass (CVSS 7.5 High)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-676",
+    "name": "Use of Potentially Dangerous Function",
+    "definition": "The program invokes a potentially dangerous function that could introduce a vulnerability if it is used incorrectly.",
+    "root_cause": "Using unsafe standard library functions like gets(), strcpy(), sprintf() in C/C++, or yaml.load() without SafeLoader in Python.",
+    "impact": [
+      "Buffer overflow.",
+      "Remote Code Execution.",
+      "Denial of Service."
+    ],
+    "mitigation": [
+      "Replace dangerous functions with safe alternatives.",
+      "Use yaml.safe_load() instead of yaml.load().",
+      "Use strncpy() instead of strcpy() in C/C++."
+    ],
+    "example_vulnerable_code": "import yaml\n\ndef load_config(path):\n    with open(path) as f:\n        return yaml.load(f)",
+    "example_fixed_code": "import yaml\n\ndef load_config(path):\n    with open(path) as f:\n        return yaml.safe_load(f)",
+    "cve_examples": [
+      "CVE-2020-1747: PyYAML arbitrary code execution via yaml.load() (CVSS 9.8 Critical)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-522",
+    "name": "Insufficiently Protected Credentials",
+    "definition": "The product transmits or stores authentication credentials, but it uses an insecure method that is susceptible to unauthorized interception and/or retrieval.",
+    "root_cause": "Storing passwords in plaintext, using weak hashing (MD5/SHA1 without salt), or transmitting credentials over unencrypted channels.",
+    "impact": [
+      "Mass credential theft.",
+      "Account takeover.",
+      "Compliance violations (GDPR, PCI-DSS)."
+    ],
+    "mitigation": [
+      "Always hash passwords with bcrypt, scrypt, or argon2id with a unique salt.",
+      "Enforce TLS/HTTPS for all credential transmission.",
+      "Implement password strength requirements."
+    ],
+    "example_vulnerable_code": "def store_user(username, password):\n    db.execute('INSERT INTO users VALUES (?, ?)', (username, password))",
+    "example_fixed_code": "import bcrypt\n\ndef store_user(username, password):\n    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())\n    db.execute('INSERT INTO users VALUES (?, ?)', (username, hashed))",
+    "cve_examples": [
+      "CVE-2019-11043: PHP-FPM plaintext credential exposure (CVSS 9.8 Critical)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-732",
+    "name": "Incorrect Permission Assignment for Critical Resource",
+    "definition": "The product specifies permissions for a security-critical resource in a way that allows that resource to be read or modified by unintended actors.",
+    "root_cause": "Setting overly permissive file permissions (777/666) on sensitive files like configuration files, private keys, or database files.",
+    "impact": [
+      "Unauthorized file access.",
+      "Configuration tampering.",
+      "Credential theft."
+    ],
+    "mitigation": [
+      "Use the principle of least privilege for file permissions.",
+      "Set sensitive files to 600 (owner read/write only).",
+      "Regularly audit file permissions."
+    ],
+    "example_vulnerable_code": "import os\n\ndef save_config(config_data, path):\n    with open(path, 'w') as f:\n        f.write(config_data)\n    os.chmod(path, 0o777)",
+    "example_fixed_code": "import os\nimport stat\n\ndef save_config(config_data, path):\n    with open(path, 'w') as f:\n        f.write(config_data)\n    os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)",
+    "cve_examples": [
+      "CVE-2021-3493: Ubuntu OverlayFS privilege escalation via improper permissions (CVSS 7.8 High)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-476",
+    "name": "NULL Pointer Dereference",
+    "definition": "A NULL pointer dereference occurs when the application dereferences a pointer that it expects to be valid, but is NULL, typically causing a crash or exit.",
+    "root_cause": "Failing to check the return value of functions that may return None/NULL before using the result.",
+    "impact": [
+      "Denial of Service (application crash).",
+      "Potential code execution in some contexts."
+    ],
+    "mitigation": [
+      "Always check return values before dereferencing.",
+      "Use Optional type hints and None checks in Python.",
+      "Use guard clauses at function entry points."
+    ],
+    "example_vulnerable_code": "def get_username(user_id):\n    user = db.query(User).get(user_id)\n    return user.name",
+    "example_fixed_code": "def get_username(user_id):\n    user = db.query(User).get(user_id)\n    if user is None:\n        return 'Unknown'\n    return user.name",
+    "cve_examples": [
+      "CVE-2021-3156: Sudo heap-based buffer overflow via NULL dereference path (CVSS 7.8 High)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-119",
+    "name": "Improper Restriction of Operations within the Bounds of a Memory Buffer",
+    "definition": "The software performs operations on a memory buffer, but it can read from or write to a memory location that is outside of the intended boundary of the buffer.",
+    "root_cause": "Writing more data into a buffer than its allocated size, typically in C/C++ programs using unsafe functions.",
+    "impact": [
+      "Remote Code Execution.",
+      "Denial of Service.",
+      "Information leakage."
+    ],
+    "mitigation": [
+      "Use bounds-checking functions (strncpy instead of strcpy).",
+      "Use memory-safe languages where possible.",
+      "Enable compiler protections (ASLR, stack canaries, DEP)."
+    ],
+    "example_vulnerable_code": "void copy_input(char *input) {\n    char buffer[64];\n    strcpy(buffer, input);\n}",
+    "example_fixed_code": "void copy_input(const char *input) {\n    char buffer[64];\n    strncpy(buffer, input, sizeof(buffer) - 1);\n    buffer[sizeof(buffer) - 1] = '\\0';\n}",
+    "cve_examples": [
+      "CVE-2021-3156: Sudo Baron Samedit heap buffer overflow (CVSS 7.8 High)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-312",
+    "name": "Cleartext Storage of Sensitive Information",
+    "definition": "The application stores sensitive information in cleartext within a resource that might be accessible to another control sphere.",
+    "root_cause": "Writing passwords, tokens, or PII to log files, databases, or configuration files without encryption.",
+    "impact": [
+      "Data breach if storage is compromised.",
+      "Compliance violations.",
+      "Credential theft from logs."
+    ],
+    "mitigation": [
+      "Encrypt sensitive data at rest using AES-256 or similar.",
+      "Never log passwords, tokens, or API keys.",
+      "Use secrets management solutions for credential storage."
+    ],
+    "example_vulnerable_code": "import logging\n\ndef authenticate(username, password):\n    logging.info(f'Login attempt: user={username}, pass={password}')\n    return check_credentials(username, password)",
+    "example_fixed_code": "import logging\n\ndef authenticate(username, password):\n    logging.info(f'Login attempt: user={username}')\n    return check_credentials(username, password)",
+    "cve_examples": [
+      "CVE-2019-11358: jQuery cleartext storage of CSRF tokens (CVSS 6.1 Medium)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-601",
+    "name": "URL Redirection to Untrusted Site (Open Redirect)",
+    "definition": "A web application accepts a user-controlled input that specifies a link to an external site, and uses that link in a redirect.",
+    "root_cause": "Blindly using user-supplied URLs in redirect responses without validating they point to trusted domains.",
+    "impact": [
+      "Phishing attacks using legitimate domain as redirect origin.",
+      "Credential theft via spoofed login pages.",
+      "OAuth token theft."
+    ],
+    "mitigation": [
+      "Validate redirect URLs against an allow-list of trusted domains.",
+      "Use relative URLs for internal redirects.",
+      "Never pass full URLs as redirect parameters."
+    ],
+    "example_vulnerable_code": "from flask import redirect, request\n\n@app.route('/login')\ndef login():\n    next_url = request.args.get('next')\n    # After login...\n    return redirect(next_url)",
+    "example_fixed_code": "from flask import redirect, request, abort\nfrom urllib.parse import urlparse\n\nTRUSTED_HOSTS = {'myapp.com', 'www.myapp.com'}\n\n@app.route('/login')\ndef login():\n    next_url = request.args.get('next', '/')\n    parsed = urlparse(next_url)\n    if parsed.netloc and parsed.netloc not in TRUSTED_HOSTS:\n        abort(400)\n    return redirect(next_url)",
+    "cve_examples": [
+      "CVE-2021-22205: GitLab open redirect chained with SSRF for RCE (CVSS 10.0 Critical)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-269",
+    "name": "Improper Privilege Management",
+    "definition": "The software does not properly assign, modify, track, or check privileges for an actor, creating an unintended sphere of control for that actor.",
+    "root_cause": "Running services as root, granting excessive database permissions, or failing to drop privileges after initialization.",
+    "impact": [
+      "Privilege escalation.",
+      "Complete system compromise.",
+      "Lateral movement in network."
+    ],
+    "mitigation": [
+      "Follow the principle of least privilege.",
+      "Run services as non-root users.",
+      "Use role-based access control with minimal permissions."
+    ],
+    "example_vulnerable_code": "# Docker: running as root\nFROM python:3.11\nCOPY . /app\nCMD [\"python\", \"app.py\"]",
+    "example_fixed_code": "FROM python:3.11\nRUN useradd -m appuser\nCOPY . /app\nRUN chown -R appuser:appuser /app\nUSER appuser\nCMD [\"python\", \"app.py\"]",
+    "cve_examples": [
+      "CVE-2021-4034: Polkit pkexec local privilege escalation (CVSS 7.8 High)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-416",
+    "name": "Use After Free",
+    "definition": "Referencing memory after it has been freed can cause a program to crash, use unexpected values, or execute code.",
+    "root_cause": "Continuing to use a pointer or reference after the memory it points to has been deallocated, common in C/C++ and sometimes in Python via weak references.",
+    "impact": [
+      "Remote Code Execution.",
+      "Denial of Service.",
+      "Information disclosure."
+    ],
+    "mitigation": [
+      "Set pointers to NULL immediately after freeing.",
+      "Use smart pointers (unique_ptr, shared_ptr) in C++.",
+      "Use memory-safe languages where possible."
+    ],
+    "example_vulnerable_code": "char *ptr = malloc(100);\nstrcpy(ptr, user_input);\nfree(ptr);\nprintf(\"%s\", ptr);  // USE AFTER FREE",
+    "example_fixed_code": "char *ptr = malloc(100);\nstrcpy(ptr, user_input);\nfree(ptr);\nptr = NULL;  // Prevent use-after-free",
+    "cve_examples": [
+      "CVE-2022-1015: Linux Kernel netfilter use-after-free (CVSS 7.8 High)."
+    ]
+  },
+  {
+    "cwe_id": "CWE-190",
+    "name": "Integer Overflow or Wraparound",
+    "definition": "The software performs a calculation that can produce an integer overflow or wraparound, when the logic assumes that the resulting value will always be larger than the original value.",
+    "root_cause": "Arithmetic operations on integers that exceed the maximum value for their type, causing the value to wrap around to a small or negative number.",
+    "impact": [
+      "Buffer overflow.",
+      "Logic bypass.",
+      "Denial of Service."
+    ],
+    "mitigation": [
+      "Use language-level protections or safe math libraries.",
+      "Validate that input values are within expected ranges before arithmetic.",
+      "Use larger integer types when overflow is possible."
+    ],
+    "example_vulnerable_code": "def allocate_buffer(count, item_size):\n    total = count * item_size  # Can overflow\n    return bytearray(total)",
+    "example_fixed_code": "import sys\n\ndef allocate_buffer(count, item_size):\n    if count < 0 or item_size < 0:\n        raise ValueError('Negative values not allowed')\n    if count > 0 and item_size > sys.maxsize // count:\n        raise OverflowError('Buffer size overflow')\n    total = count * item_size\n    return bytearray(total)",
+    "cve_examples": [
+      "CVE-2021-22555: Linux Netfilter integer overflow leading to privilege escalation (CVSS 7.8 High)."
+    ]
+  }
+]
